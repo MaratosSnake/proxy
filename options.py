@@ -1,0 +1,1 @@
+BASE_DB_PATH = 'db.sqlite'
