@@ -56,6 +56,30 @@ class ProxyDataBase:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.__connection.close()
 
+    def get_client_data(self):
+        while True:
+            is_reg = input('Have you already registered? [y/n] >> ').lower()
+            if is_reg == 'y':
+                login = input('Enter your login >> ')
+                password = input('Enter your password >> ')
+                break
+            elif is_reg == 'n':
+                login = input('Enter your login >> ')
+                while True:
+                    password = input('Enter your password >> ')
+                    conf_password = input('Confirm your password >> ')
+                    if password == conf_password:
+                        self.add_user(login, password)
+                        break
+                    else:
+                        print('Passwords are different')
+                break
+            else:
+                print('Please answer correctly')
+        return login, password
+
+
+
 
 
 
