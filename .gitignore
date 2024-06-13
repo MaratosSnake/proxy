@@ -1,0 +1,14 @@
+# Байт-код, оптимизированные / DLL-файлы
+__pycache__/
+*.py[cod]
+
+# Файлы конфигурации для venv
+venv/
+.env
+
+#Idea
+.idea/
+
+#Some other files/dirs
+proxy.log
+db.sqlite

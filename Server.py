@@ -1,6 +1,7 @@
 import asyncio
 from asyncio.exceptions import CancelledError
 from Request import Request, logger
+from options import DOMAINS_BLACK_LIST
 
 
 class Proxy:
@@ -21,10 +22,11 @@ class Proxy:
         try:
             # Формируем запрос
             async with Request(reader) as request:
+                is_baned_domain = request.host in DOMAINS_BLACK_LIST
                 if request.method == 'CONNECT':
-                    await request.handle_connection(reader, writer)
+                    await request.handle_connection(reader, writer, is_baned_domain)
                 else:
-                    await request.handle_request(reader, writer)
+                    await request.handle_request(reader, writer, is_baned_domain)
         except Exception as e:
             logger.exception(f'Exception: {e}')
 
@@ -41,7 +43,7 @@ class Proxy:
         await self.__start_server()
         return self
 
-    async def __aexit__(self):
+    async def __aexit__(self, *args):
         self.__server.close()
 
     async def on_close(self, timeout=600.0):

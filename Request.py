@@ -65,7 +65,19 @@ class Request:
             except (asyncio.TimeoutError, ConnectionResetError, BrokenPipeError, Exception):
                 break
 
-    async def handle_connection(self, client_reader, client_writer):
+    async def handle_connection(self, client_reader, client_writer, is_baned_domain: bool):
+        if is_baned_domain:
+            response = (
+                "HTTP/1.1 403 Forbidden\r\n"
+                "Content-Type: text/html\r\n"
+                "Connection: close\r\n\r\n"
+                "<html><body><h1>403 Forbidden</h1><p>Доступ к этому сайту запрещен.</p></body></html>\r\n"
+            )
+            client_writer.write(response.encode())
+            await client_writer.drain()
+            client_writer.close()
+            logger.info(f"Access to {self.host} is forbidden")
+            return
         try:
             target_reader, target_writer = await asyncio.open_connection(self.host, self.port)
             client_writer.write(b'HTTP/1.1 200 Connection Established\r\n\r\n')
@@ -82,8 +94,19 @@ class Request:
             if target_writer:
                 target_writer.close()
 
-    async def handle_request(self, client_reader, client_writer):
-        global dst_writer
+    async def handle_request(self, client_reader, client_writer, is_baned_domain: bool):
+        if is_baned_domain:
+            response = (
+                "HTTP/1.1 403 Forbidden\r\n"
+                "Content-Type: text/html\r\n"
+                "Connection: close\r\n\r\n"
+                "<html><body><h1>403 Forbidden</h1><p>Доступ к этому сайту запрещен.</p></body></html>\r\n"
+            )
+            client_writer.write(response.encode())
+            await client_writer.drain()
+            client_writer.close()
+            logger.info(f"Access to {self.host} is forbidden")
+            return
         try:
             dst_reader, dst_writer = await asyncio.open_connection(self.host, self.port)
             # Отправка запроса
