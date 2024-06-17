@@ -1,14 +1,14 @@
-import os.path
 import sqlite3
 from sqlite3 import Error
 from options import BASE_DB_PATH
+from proxy_logger import logger
 
 
 def create_connection():
     connection = None
     try:
         connection = sqlite3.connect(BASE_DB_PATH)
-        print("Connection to SQLite DB successful")
+        logger.info("Connection to SQLite DB successful")
     except Error as e:
         print(f"The error '{e}' occurred")
     finally:
@@ -24,22 +24,33 @@ id INTEGER PRIMARY KEY,
 login TEXT NOT NULL,
 password TEXT NOT NULL)
 ''')
-
     connection.commit()
-    connection.close()
+    return connection
 
 
 class ProxyDataBase:
     def __init__(self):
-        set_up_db()
-        self.__connection = create_connection()
+        # create connection to database
+        self.__connection = set_up_db()
         self.__cursor = self.__connection.cursor()
 
     def add_user(self, login: str, password: str):
+        """
+        Adding user to db after registration
+        :param login: user login
+        :param password: user password
+        :return:
+        """
         self.__cursor.execute('INSERT INTO ProxyUsers (login, password) VALUES (?, ?)', (login, password))
         self.__connection.commit()
 
     def is_user_registered(self, login: str, password: str) -> bool:
+        """
+        Checks user registration in proxy db
+        :param login: user login
+        :param password: user password
+        :return: true if user has already registered else false
+        """
         self.__cursor = self.__connection.cursor()
         self.__cursor.execute('''
                 SELECT login, password

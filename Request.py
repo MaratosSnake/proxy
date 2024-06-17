@@ -1,5 +1,6 @@
 import asyncio
 from proxy_logger import logger
+from options import BASE_403_FORBIDDEN_PATH
 
 
 class Request:
@@ -67,17 +68,28 @@ class Request:
 
     async def handle_connection(self, client_reader, client_writer, is_baned_domain: bool):
         if is_baned_domain:
-            response = (
-                "HTTP/1.1 403 Forbidden\r\n"
-                "Content-Type: text/html\r\n"
-                "Connection: close\r\n\r\n"
-                "<html><body><h1>403 Forbidden</h1><p>Доступ к этому сайту запрещен.</p></body></html>\r\n"
-            )
-            client_writer.write(response.encode())
-            await client_writer.drain()
-            client_writer.close()
-            logger.info(f"Access to {self.host} is forbidden")
-            return
+            try:
+                logger.info(f'starting 403 forbidden')
+                # TODO
+                # this code doesn't work
+                with open(BASE_403_FORBIDDEN_PATH) as file:
+                    html = file.read()
+                response = (
+                        "HTTP/1.1 403 Forbidden\r\n"
+                        "Content-Type: text/html\r\n"
+                        f"Content-Length: {len(html)}\r\n"
+                        "Connection: keep-alive\r\n"
+                        "Keep-Alive: timeout=25\r\n\r\n"
+                        + html + '\r\n'
+                )
+                client_writer.write(response.encode())
+                await client_writer.drain()
+                logger.info(f"Access to {self.host} is forbidden")
+            except Exception as e:
+                logger.error(f'Error in 403 forbidden response: {e}')
+            finally:
+                client_writer.close()
+                return
         try:
             target_reader, target_writer = await asyncio.open_connection(self.host, self.port)
             client_writer.write(b'HTTP/1.1 200 Connection Established\r\n\r\n')
@@ -91,43 +103,53 @@ class Request:
             logger.error(f'error in CONNECT: {e}')
         finally:
             client_writer.close()
+            await client_writer.wait_closed()
             if target_writer:
                 target_writer.close()
 
     async def handle_request(self, client_reader, client_writer, is_baned_domain: bool):
         if is_baned_domain:
-            response = (
-                "HTTP/1.1 403 Forbidden\r\n"
-                "Content-Type: text/html\r\n"
-                "Connection: close\r\n\r\n"
-                "<html><body><h1>403 Forbidden</h1><p>Доступ к этому сайту запрещен.</p></body></html>\r\n"
-            )
-            client_writer.write(response.encode())
-            await client_writer.drain()
-            client_writer.close()
-            logger.info(f"Access to {self.host} is forbidden")
-            return
-        try:
-            dst_reader, dst_writer = await asyncio.open_connection(self.host, self.port)
-            # Отправка запроса
-            request = f"{self.method} {self.path} {self.http_version}\r\n"
-            dst_writer.write(request.encode())
-            for header, value in self.headers.items():
-                if header.lower() == 'transfer-encoding':
-                    continue
-                dst_writer.write(f'{header}: {value}\r\n'.encode())
-            dst_writer.write(b'\r\n')
-            await dst_writer.drain()
+            try:
+                with open(BASE_403_FORBIDDEN_PATH) as file:
+                    html = file.read()
+                response = (
+                        "HTTP/1.1 403 Forbidden\r\n"
+                        "Content-Type: text/html\r\n"
+                        f"Content-Length: {len(html)}\r\n"
+                        "Connection: close\r\n"
+                        "Keep-Alive: timeout=25\r\n\r\n"
+                        + html + '\r\n'
+                )
+                client_writer.write(response.encode())
+                await client_writer.drain()
+                logger.info(f"Access to {self.host} is forbidden")
+            except Exception as e:
+                logger.error(f'Error in handling HTTP: {e} | Request: {self}')
+            finally:
+                client_writer.close()
+                return
+        else:
+            try:
+                dst_reader, dst_writer = await asyncio.open_connection(self.host, self.port)
+                # Отправка запроса
+                request = f"{self.method} {self.path} {self.http_version}\r\n"
+                dst_writer.write(request.encode())
+                for header, value in self.headers.items():
+                    if header.lower() == 'transfer-encoding':
+                        continue
+                    dst_writer.write(f'{header}: {value}\r\n'.encode())
+                dst_writer.write(b'\r\n')
+                await dst_writer.drain()
 
-            await asyncio.gather(
-                self._forward(client_reader, dst_writer),
-                self._forward(dst_reader, client_writer),
-                return_exceptions=True
-            )
-            logger.info(self)
-        except Exception as e:
-            logger.error(f'Error in handling HTTP: {e} | Request: {self}')
-        finally:
-            client_writer.close()
-            if dst_writer:
-                 dst_writer.close()
+                await asyncio.gather(
+                    self._forward(client_reader, dst_writer),
+                    self._forward(dst_reader, client_writer),
+                    return_exceptions=True
+                )
+                logger.info(self)
+            except Exception as e:
+                logger.error(f'Error in handling HTTP: {e} | Request: {self}')
+            finally:
+                client_writer.close()
+                if dst_writer:
+                    dst_writer.close()
