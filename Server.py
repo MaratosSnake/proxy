@@ -7,9 +7,8 @@ from options import DOMAINS_BLACK_LIST
 class Proxy:
     """
     A proxy class supporting http and https
-    usage "async with Proxy(...):
     """
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str, port: int, args: list):
         """
         :param host: Proxy host
         :param port: Proxy port
@@ -17,12 +16,14 @@ class Proxy:
         self.__server = None
         self.__host: str = host
         self.__port: int = port
+        self.__args = set(args) if args else None
+        print(f'Additional filtering: {self.__args}')
 
     async def __read_request(self, reader, writer):
         try:
             # Формируем запрос
-            async with Request(reader) as request:
-                is_baned_domain = request.host in DOMAINS_BLACK_LIST
+            async with (Request(reader) as request):
+                is_baned_domain: bool = request.host in DOMAINS_BLACK_LIST or (request.host in self.__args if self.__args else False)
                 if request.method == 'CONNECT':
                     await request.handle_connection(reader, writer, is_baned_domain)
                 else:

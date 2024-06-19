@@ -104,8 +104,8 @@ class Request:
         finally:
             client_writer.close()
             await client_writer.wait_closed()
-            if target_writer:
-                target_writer.close()
+            # if target_writer:
+            #     target_writer.close()
 
     async def handle_request(self, client_reader, client_writer, is_baned_domain: bool):
         if is_baned_domain:
