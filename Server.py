@@ -17,9 +17,14 @@ class Proxy:
         self.__host: str = host
         self.__port: int = port
         self.__args = set(args) if args else None
+        self.__active_connections = 0
+        self.__lock = asyncio.Lock()
         print(f'Additional filtering: {self.__args}')
+        print(f'Base filtering: {DOMAINS_BLACK_LIST}')
 
     async def __read_request(self, reader, writer):
+        async with self.__lock:
+            self.__active_connections += 1
         try:
             # Формируем запрос
             async with (Request(reader) as request):
@@ -30,6 +35,11 @@ class Proxy:
                     await request.handle_request(reader, writer, is_baned_domain)
         except Exception as e:
             logger.exception(f'Exception: {e}')
+        finally:
+            async with self.__lock:
+                self.__active_connections -= 1
+                if self.__active_connections == 0:
+                    self.__stop_server()
 
     async def __start_server(self):
         try:
@@ -40,12 +50,19 @@ class Proxy:
         except CancelledError:
             logger.error('The Proxy has been disabled')
 
+    def __stop_server(self):
+        if self.__server:
+            self.__server.close()
+            asyncio.create_task(self.__server.wait_closed())
+            logger.info('Proxy server stopped as there are no active connections.')
+            asyncio.get_running_loop().stop()
+
     async def __aenter__(self):
         await self.__start_server()
         return self
 
     async def __aexit__(self, *args):
-        self.__server.close()
+        pass
 
     async def on_close(self, timeout=600.0):
         """

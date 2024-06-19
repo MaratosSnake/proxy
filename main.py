@@ -19,7 +19,7 @@ if __name__ == "__main__":
     parser.add_argument('-a', nargs='+', help='Domains to block', required=False)
     parser.add_argument('-f', help='Get domains to block from file', required=False)
     domains_to_block: list[str] = parser.parse_args().a
-    if parser.parse_args().ffile:
+    if parser.parse_args().f:
         try:
             with open(parser.parse_args().f) as file:
                 if domains_to_block:
