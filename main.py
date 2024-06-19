@@ -16,12 +16,12 @@ async def main(args: list[str] = None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-filter', nargs='+', help='Domains to block', required=False)
-    parser.add_argument('-ffile', help='Get domains to block from file', required=False)
-    domains_to_block: list[str] = parser.parse_args().filter
+    parser.add_argument('-a', nargs='+', help='Domains to block', required=False)
+    parser.add_argument('-f', help='Get domains to block from file', required=False)
+    domains_to_block: list[str] = parser.parse_args().a
     if parser.parse_args().ffile:
         try:
-            with open(parser.parse_args().ffile) as file:
+            with open(parser.parse_args().f) as file:
                 if domains_to_block:
                     domains_to_block.append(file.readline().strip())
                 else:
